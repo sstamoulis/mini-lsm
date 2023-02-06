@@ -2,7 +2,7 @@ mod builder;
 mod iterator;
 
 pub use builder::BlockBuilder;
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 pub use iterator::BlockIterator;
 
 /// A block is the smallest unit of read and caching in LSM tree. It is a collection of sorted
@@ -14,7 +14,12 @@ pub struct Block {
 
 impl Block {
     pub fn encode(&self) -> Bytes {
-        unimplemented!()
+        let mut bytes = BytesMut::with_capacity(self.size());
+        bytes.extend_from_slice(&self.data);
+        bytes.extend(self.offsets.iter().flat_map(|o| o.to_le_bytes()));
+        let num_of_elements = self.offsets.len() as u16;
+        bytes.extend(num_of_elements.to_le_bytes());
+        bytes.freeze()
     }
 
     pub fn decode(data: &[u8]) -> Self {
