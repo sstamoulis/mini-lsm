@@ -1,6 +1,3 @@
-#![allow(unused_variables)] // TODO(you): remove this lint after implementing this mod
-#![allow(dead_code)] // TODO(you): remove this lint after implementing this mod
-
 mod builder;
 mod iterator;
 
@@ -22,6 +19,11 @@ impl Block {
 
     pub fn decode(data: &[u8]) -> Self {
         unimplemented!()
+    }
+
+    fn size(&self) -> usize {
+        1 // num_of_elements size
+        + self.data.len() + self.offsets.len() * U16_SIZE
     }
 }
 
