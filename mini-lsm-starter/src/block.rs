@@ -26,7 +26,7 @@ impl Block {
 
     pub fn decode(data: &[u8]) -> Self {
         fn to_u16(bytes: &[u8]) -> u16 {
-            ((bytes[1] as u16) << 8) | bytes[0] as u16
+            u16::from_le_bytes(bytes.try_into().unwrap())
         }
 
         let num_of_elements = to_u16(&data[data.len() - U16_SIZE..]);
