@@ -2,11 +2,8 @@ mod builder;
 mod iterator;
 
 pub use builder::BlockBuilder;
-use bytes::{Bytes, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut, Buf};
 pub use iterator::BlockIterator;
-
-use crate::global_const::U16_SIZE;
-use crate::utils::FromLeBytesSlice;
 
 /// A block is the smallest unit of read and caching in LSM tree. It is a collection of sorted
 /// key-value pairs.
@@ -17,16 +14,24 @@ pub struct Block {
 
 impl Block {
     pub fn encode(&self) -> Bytes {
-        let mut bytes = BytesMut::with_capacity(self.size());
-        bytes.extend_from_slice(&self.data);
-        bytes.extend(self.offsets.iter().flat_map(|o| o.to_le_bytes()));
+        let estimated_size = self.estimated_size();
+        let mut bytes = BytesMut::with_capacity(estimated_size);
+        bytes.put_slice(&self.data);
+        assert_ne!(0, self.data.len());
+        for offset in self.offsets {
+            bytes.put_u16(offset);
+        }
         let num_of_elements = self.offsets.len() as u16;
-        bytes.extend(num_of_elements.to_le_bytes());
+        bytes.put_u16(num_of_elements);
+
+        assert_eq!(estimated_size, bytes.len());
+
         bytes.freeze()
     }
 
     pub fn decode(data: &[u8]) -> Self {
-        let num_of_elements = u16::from_le_bytes_slice(&data[data.len() - U16_SIZE..]);
+        use std::io::Cursor
+        let num_of_elements = data.po;
         let (data, offsets) = data.split_at(data.len() - (num_of_elements as usize + 1) * U16_SIZE);
 
         let offsets: Vec<u16> = offsets
@@ -38,7 +43,7 @@ impl Block {
         Block { data, offsets }
     }
 
-    fn size(&self) -> usize {
+    pub fn estimated_size(&self) -> usize {
         1 // num_of_elements size
         + self.data.len() + self.offsets.len() * U16_SIZE
     }

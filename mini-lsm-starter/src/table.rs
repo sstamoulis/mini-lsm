@@ -1,6 +1,3 @@
-#![allow(unused_variables)] // TODO(you): remove this lint after implementing this mod
-#![allow(dead_code)] // TODO(you): remove this lint after implementing this mod
-
 mod builder;
 mod iterator;
 
@@ -9,7 +6,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 pub use builder::SsTableBuilder;
-use bytes::{Buf, Bytes};
+use bytes::{Buf, BufMut, Bytes};
 pub use iterator::SsTableIterator;
 
 use crate::block::Block;
@@ -30,7 +27,18 @@ impl BlockMeta {
         #[allow(clippy::ptr_arg)] // remove this allow after you finish
         buf: &mut Vec<u8>,
     ) {
-        unimplemented!()
+        use std::mem::size_of;
+        let estimated_size = block_meta.iter().fold(0, |acc, meta| {
+            acc + size_of::<u32>() + size_of::<u16>() + meta.first_key.len()
+        });
+        let original_size = buf.len();
+        buf.reserve(estimated_size);
+        for meta in block_meta {
+            buf.put_u32(meta.offset as u32);
+            buf.put_u16_le(meta.first_key.len() as u16);
+            buf.put(meta.first_key.clone());
+        }
+        assert_eq!(estimated_size, buf.len() - original_size);
     }
 
     /// Decode block meta from a buffer.

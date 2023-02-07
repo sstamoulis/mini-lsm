@@ -23,7 +23,7 @@ impl BlockBuilder {
     /// Adds a key-value pair to the block. Returns false when the block is full.
     #[must_use]
     pub fn add(&mut self, key: &[u8], value: &[u8]) -> bool {
-        let current_block_size = self.block.size();
+        let current_block_size = self.block.estimated_size();
         let future_block_size = current_block_size 
             + 3 * U16_SIZE // offset + key_len + value_len size
             + key.len() + value.len();
