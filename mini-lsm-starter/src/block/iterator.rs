@@ -1,8 +1,6 @@
-use std::sync::Arc;
-
 use super::Block;
-use crate::global_const::U16_SIZE;
-use crate::utils::FromLeBytesSlice;
+use bytes::Buf;
+use std::sync::Arc;
 
 /// Iterates on a block.
 pub struct BlockIterator {
@@ -25,7 +23,7 @@ impl BlockIterator {
     /// Creates a block iterator and seek to the first entry.
     pub fn create_and_seek_to_first(block: Arc<Block>) -> Self {
         let mut it = Self::new(block);
-        it.next();
+        it.seek_to_first();
         it
     }
 
@@ -53,27 +51,12 @@ impl BlockIterator {
 
     /// Seeks to the first key in the block.
     pub fn seek_to_first(&mut self) {
-        self.idx = 0;
-        self.next();
+        self.seek_to(0);
     }
 
     /// Move to the next key in the block.
     pub fn next(&mut self) {
-        if let Some(offset) = self.block.offsets.get(self.idx) {
-            let data = &self.block.data[*offset as usize..];
-            let (key_len, data) = data.split_at(U16_SIZE);
-            let key_len = u16::from_le_bytes_slice(key_len) as usize;
-            let (key, data) = data.split_at(key_len);
-            self.key = key.into();
-            let (value_len, data) = data.split_at(U16_SIZE);
-            let value_len = u16::from_le_bytes_slice(value_len) as usize;
-            self.value = Vec::from(&data[..value_len]);
-            self.idx += 1;
-        } else {
-            // reached end
-            self.key = Vec::new();
-            self.value = Vec::new();
-        }
+        self.seek_to(self.idx + 1);
     }
 
     /// Seek to the first key that >= `key`.
@@ -83,5 +66,27 @@ impl BlockIterator {
             eprintln!("{}", std::str::from_utf8(self.key.as_slice()).unwrap());
             self.next();
         }
+    }
+
+    /// Seeks to idx-th block
+    fn seek_to(&mut self, idx: usize) {
+        self.idx = idx;
+        if let Some(offset) = self.block.offsets.get(idx) {
+            self.seek_to_offset(*offset as usize);
+        } else {
+            self.key.clear();
+            self.value.clear();
+        }
+    }
+
+    /// Seeks to the byte offset
+    fn seek_to_offset(&mut self, offset: usize) {
+        let mut entry = &self.block.data[offset..];
+        let key_len = entry.get_u16() as usize;
+        self.key.clear();
+        self.key.extend(entry.copy_to_bytes(key_len));
+        let value_len = entry.get_u16() as usize;
+        self.value.clear();
+        self.value.extend(entry.copy_to_bytes(value_len));
     }
 }
