@@ -1,4 +1,5 @@
 pub mod global_const;
+pub mod utils;
 
 pub mod block;
 pub mod iterators;

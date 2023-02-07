@@ -6,6 +6,7 @@ use bytes::{Bytes, BytesMut};
 pub use iterator::BlockIterator;
 
 use crate::global_const::U16_SIZE;
+use crate::utils::FromLeBytesSlice;
 
 /// A block is the smallest unit of read and caching in LSM tree. It is a collection of sorted
 /// key-value pairs.
@@ -25,17 +26,13 @@ impl Block {
     }
 
     pub fn decode(data: &[u8]) -> Self {
-        fn to_u16(bytes: &[u8]) -> u16 {
-            u16::from_le_bytes(bytes.try_into().unwrap())
-        }
-
-        let num_of_elements = to_u16(&data[data.len() - U16_SIZE..]);
+        let num_of_elements = u16::from_le_bytes_slice(&data[data.len() - U16_SIZE..]);
         let (data, offsets) = data.split_at(data.len() - (num_of_elements as usize + 1) * U16_SIZE);
 
         let offsets: Vec<u16> = offsets
             .chunks_exact(U16_SIZE)
             .take(num_of_elements as usize)
-            .map(|b| to_u16(b))
+            .map(|b| u16::from_le_bytes_slice(b))
             .collect();
         let data: Vec<u8> = data.to_vec();
         Block { data, offsets }
